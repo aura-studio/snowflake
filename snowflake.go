@@ -33,12 +33,12 @@ func NewPattern(epoch time.Time, tick time.Duration, timeBits, nodeBits, stepBit
 
 // NewNode returns a new snowflake node that can be used to generate snowflake
 func (p *Pattern) NewNode(node int64) (*Node, error) {
-	return NewPatternNode(node, p, false, false)
+	return NewPatternNode(p, node, false, false)
 }
 
 // NewSafeNode returns a new snowflake node that can be used to generate snowflake
 func (p *Pattern) NewSafeNode(node int64) (*Node, error) {
-	return NewPatternNode(node, p, true, false)
+	return NewPatternNode(p, node, true, false)
 }
 
 var (
@@ -92,6 +92,7 @@ func init() {
 type Node struct {
 	safe        bool
 	sleepOrSpin bool
+	etcd        string
 
 	mu    sync.Mutex
 	epoch time.Time
@@ -120,17 +121,17 @@ type ID int64
 
 // NewNode returns a new snowflake node that can be used to generate snowflake
 func NewNode(node int64) (*Node, error) {
-	return NewPatternNode(node, DefaultPattern, true, false)
+	return NewPatternNode(DefaultPattern, node, true, false)
 }
 
 // NewSafeNode returns a new snowflake node that can be used to generate snowflake
 func NewSafeNode(node int64) (*Node, error) {
-	return NewPatternNode(node, DefaultPattern, false, false)
+	return NewPatternNode(DefaultPattern, node, false, false)
 }
 
 // NewNode returns a new snowflake node that can be used to generate snowflake
 // IDs
-func NewPatternNode(node int64, p *Pattern, safe bool, sleepOrSpin bool) (*Node, error) {
+func NewPatternNode(p *Pattern, node int64, safe bool, sleepOrSpin bool) (*Node, error) {
 	n := Node{}
 	n.safe = safe
 	n.sleepOrSpin = sleepOrSpin

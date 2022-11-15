@@ -578,14 +578,20 @@ func TestParseBase58(t *testing.T) {
 	}
 }
 
-func TestSpecificTick(t *testing.T) {
+func TestEtcd(t *testing.T) {
 	epoch := time.Date(2014, 9, 1, 0, 0, 0, 0, time.UTC)
 	tick := 10 * time.Millisecond
-	p := NewPattern(epoch, tick, 39, 8, 16)
-	n, err := p.NewNode(19260)
+	p := NewPattern(epoch, tick, 39, 16, 8)
+	n, err := p.NewNode(0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	id := n.Generate()
+
+	t.Log(id.Time(n), id.Node(n), id.Step(n))
+	n.WithEtcd("/hello/", "127.0.0.1:2379", 10*time.Second, time.Minute, time.Minute-10*time.Second)
+
+	id = n.Generate()
+
 	t.Log(id.Time(n), id.Node(n), id.Step(n))
 }
