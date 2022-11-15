@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"reflect"
 	"testing"
+	"time"
 )
 
 //******************************************************************************
 // General Test funcs
 
 func TestNewNode(t *testing.T) {
-
 	_, err := NewNode(0)
 	if err != nil {
 		t.Fatalf("error creating NewNode, %s", err)
@@ -20,7 +20,6 @@ func TestNewNode(t *testing.T) {
 	if err == nil {
 		t.Fatalf("no error creating NewNode, %s", err)
 	}
-
 }
 
 // lazy check if Generate will create duplicate IDs
@@ -436,8 +435,8 @@ func BenchmarkGenerate(b *testing.B) {
 
 func BenchmarkGenerateMaxSequence(b *testing.B) {
 
-	NodeBits = 1
-	StepBits = 21
+	DefaultPattern.NodeBits = 1
+	DefaultPattern.StepBits = 21
 	node, _ := NewNode(1)
 
 	b.ReportAllocs()
@@ -577,4 +576,16 @@ func TestParseBase58(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSpecificTick(t *testing.T) {
+	epoch := time.Date(2014, 9, 1, 0, 0, 0, 0, time.UTC)
+	tick := 10 * time.Millisecond
+	p := NewPattern(epoch, tick, 39, 8, 16)
+	n, err := p.NewNode(19260)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := n.Generate()
+	t.Log(id.Time(n), id.Node(n), id.Step(n))
 }
