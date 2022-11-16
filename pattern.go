@@ -33,6 +33,6 @@ func NewPattern(epoch time.Time, tick time.Duration, stepBits, nodeBits, timeBit
 }
 
 // NewNode returns a new snowflake node that can be used to generate snowflake
-func (p *Pattern) NewNode(node int64, opts ...Option) (*Node, error) {
-	return NewNode(node, append(opts, WithPattern(p))...)
+func (p *Pattern) NewNode(opts ...Option) (*Node, error) {
+	return NewNode(append(opts, WithPattern(p))...)
 }

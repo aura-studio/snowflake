@@ -58,14 +58,11 @@ func init() {
 type Node struct {
 	Options
 
-	etcd string
-
 	mu    sync.Mutex
 	epoch time.Time
 	tick  time.Duration
 
 	time int64
-	node int64
 	step int64
 
 	timeShift uint8
@@ -87,7 +84,7 @@ type ID int64
 
 // NewNode returns a new snowflake node that can be used to generate snowflake
 // IDs
-func NewNode(node int64, opts ...Option) (*Node, error) {
+func NewNode(opts ...Option) (*Node, error) {
 	n := Node{
 		Options: defaultOptions,
 	}
@@ -95,7 +92,6 @@ func NewNode(node int64, opts ...Option) (*Node, error) {
 	n.Options.Apply(opts...)
 
 	p := n.pattern
-	n.node = node
 
 	n.stepShift = p.StepBits[0]
 	n.stepMax = -1 ^ (-1 << p.StepBits[1])
@@ -115,6 +111,12 @@ func NewNode(node int64, opts ...Option) (*Node, error) {
 
 	n.epoch = p.Epoch
 	n.tick = p.Tick
+
+	if n.etcd != nil {
+		n.generateNodeFromEtcd()
+	} else if n.networkNode {
+		n.generateNodeFromNetwork()
+	}
 
 	return &n, nil
 }

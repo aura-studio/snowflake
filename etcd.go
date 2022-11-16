@@ -11,13 +11,22 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func (n *Node) WithEtcd(
-	prefix string,
-	addr string,
-	timeout time.Duration,
-	leaseTime time.Duration,
-	leaseInterval time.Duration,
-) {
+type Etcd struct {
+	Prefix        string
+	Addr          string
+	Timeout       time.Duration
+	LeaseTime     time.Duration
+	LeaseInterval time.Duration
+}
+
+func (n *Node) generateNodeFromEtcd() {
+	var (
+		prefix        = n.etcd.Prefix
+		addr          = n.etcd.Addr
+		timeout       = n.etcd.Timeout
+		leaseTime     = n.etcd.LeaseTime
+		leaseInterval = n.etcd.LeaseInterval
+	)
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		defer cancel()
