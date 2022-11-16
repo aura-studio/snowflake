@@ -434,9 +434,6 @@ func BenchmarkGenerate(b *testing.B) {
 }
 
 func BenchmarkGenerateMaxSequence(b *testing.B) {
-
-	DefaultPattern.NodeBits = 1
-	DefaultPattern.StepBits = 21
 	node, _ := NewNode(1)
 
 	b.ReportAllocs()
@@ -581,17 +578,18 @@ func TestParseBase58(t *testing.T) {
 func TestEtcd(t *testing.T) {
 	epoch := time.Date(2014, 9, 1, 0, 0, 0, 0, time.UTC)
 	tick := 10 * time.Millisecond
-	p := NewPattern(epoch, tick, 39, 16, 8)
-	n, err := p.NewNode(0)
+	p := NewPattern(epoch, tick, [2]uint8{0, 8}, [2]uint8{8, 16}, [2]uint8{24, 39})
+	n, err := p.NewNode(1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	id := n.Generate()
 
-	t.Log(id.Time(n), id.Node(n), id.Step(n))
+	id := n.Generate()
+	t.Log(n.step, n.node, n.time)
+	t.Log(id.Step(n), id.Node(n), id.Time(n))
 	n.WithEtcd("/hello/", "127.0.0.1:2379", 10*time.Second, time.Minute, time.Minute-10*time.Second)
 
 	id = n.Generate()
 
-	t.Log(id.Time(n), id.Node(n), id.Step(n))
+	t.Log(id.Step(n), id.Node(n), id.Time(n))
 }

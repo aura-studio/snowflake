@@ -11,40 +11,6 @@ import (
 	"time"
 )
 
-// Pattern is a snowflake pattern
-type Pattern struct {
-	Epoch    time.Time
-	Tick     time.Duration
-	TimeBits uint8
-	NodeBits uint8
-	StepBits uint8
-}
-
-// NewPattern returns a new snowflake pattern
-func NewPattern(epoch time.Time, tick time.Duration, timeBits, nodeBits, stepBits uint8) *Pattern {
-	return &Pattern{
-		Epoch:    epoch,
-		Tick:     tick,
-		TimeBits: timeBits,
-		NodeBits: nodeBits,
-		StepBits: stepBits,
-	}
-}
-
-// NewNode returns a new snowflake node that can be used to generate snowflake
-func (p *Pattern) NewNode(node int64) (*Node, error) {
-	return NewPatternNode(p, node, false, false)
-}
-
-// NewSafeNode returns a new snowflake node that can be used to generate snowflake
-func (p *Pattern) NewSafeNode(node int64) (*Node, error) {
-	return NewPatternNode(p, node, true, false)
-}
-
-var (
-	DefaultPattern = NewPattern(time.Unix(1288834974, 657000000), time.Millisecond, 41, 10, 12)
-)
-
 const encodeBase32Map = "ybndrfg8ejkmcpqxot1uwisza345h769"
 
 var decodeBase32Map [256]byte
@@ -90,9 +56,9 @@ func init() {
 // A Node struct holds the basic information needed for a snowflake generator
 // node
 type Node struct {
-	safe        bool
-	sleepOrSpin bool
-	etcd        string
+	Options
+
+	etcd string
 
 	mu    sync.Mutex
 	epoch time.Time
@@ -120,35 +86,28 @@ type Node struct {
 type ID int64
 
 // NewNode returns a new snowflake node that can be used to generate snowflake
-func NewNode(node int64) (*Node, error) {
-	return NewPatternNode(DefaultPattern, node, true, false)
-}
-
-// NewSafeNode returns a new snowflake node that can be used to generate snowflake
-func NewSafeNode(node int64) (*Node, error) {
-	return NewPatternNode(DefaultPattern, node, false, false)
-}
-
-// NewNode returns a new snowflake node that can be used to generate snowflake
 // IDs
-func NewPatternNode(p *Pattern, node int64, safe bool, sleepOrSpin bool) (*Node, error) {
-	n := Node{}
-	n.safe = safe
-	n.sleepOrSpin = sleepOrSpin
+func NewNode(node int64, opts ...Option) (*Node, error) {
+	n := Node{
+		Options: defaultOptions,
+	}
 
+	n.Options.Apply(opts...)
+
+	p := n.pattern
 	n.node = node
 
-	n.timeShift = p.NodeBits + p.StepBits
-	n.timeMax = -1 ^ (-1 << p.TimeBits)
-	n.timeMask = n.timeMax << (n.timeShift)
+	n.stepShift = p.StepBits[0]
+	n.stepMax = -1 ^ (-1 << p.StepBits[1])
+	n.stepMask = n.stepMax << n.stepShift
 
-	n.nodeShift = p.StepBits
-	n.nodeMax = -1 ^ (-1 << p.NodeBits)
+	n.nodeShift = p.NodeBits[0]
+	n.nodeMax = -1 ^ (-1 << p.NodeBits[1])
 	n.nodeMask = n.nodeMax << n.nodeShift
 
-	n.stepShift = 0
-	n.stepMax = -1 ^ (-1 << p.StepBits)
-	n.stepMask = n.stepMax << n.stepShift
+	n.timeShift = p.TimeBits[0]
+	n.timeMax = -1 ^ (-1 << p.TimeBits[1])
+	n.timeMask = n.timeMax << n.timeShift
 
 	if n.node < 0 || n.node > n.nodeMax {
 		return nil, errors.New("Node number must be between 0 and " + strconv.FormatInt(n.nodeMax, 10))
@@ -178,7 +137,7 @@ func (n *Node) Generate() ID {
 		n.step = (n.step + 1) & n.stepMask
 
 		if n.step == 0 {
-			if n.sleepOrSpin {
+			if n.waitMethod == WaitMethodSleep {
 				time.Sleep(time.Duration(tick - (sinceEpoch % tick)))
 			} else {
 				for now <= n.time {
@@ -194,10 +153,14 @@ func (n *Node) Generate() ID {
 
 	r := ID((now)<<n.timeShift |
 		(n.node << n.nodeShift) |
-		(n.step),
+		(n.step << n.stepShift),
 	)
 
 	return r
+}
+
+func (n *Node) Node() int64 {
+	return n.node
 }
 
 // Int64 returns an int64 of the snowflake ID
@@ -363,17 +326,17 @@ func ParseIntBytes(id [8]byte) ID {
 
 // Time returns an int64 of the snowflake ID time
 func (f ID) Time(n *Node) int64 {
-	return int64(f) & n.timeMask >> n.timeShift
+	return int64(f) & n.timeMask >> int64(n.timeShift)
 }
 
 // Node returns an int64 of the snowflake ID node number
 func (f ID) Node(n *Node) int64 {
-	return int64(f) & n.nodeMask >> n.nodeShift
+	return int64(f) & n.nodeMask >> int64(n.nodeShift)
 }
 
 // Step returns an int64 of the snowflake step (or sequence) number
 func (f ID) Step(n *Node) int64 {
-	return int64(f) & n.stepMask
+	return int64(f) & n.stepMask >> int64(n.stepShift)
 }
 
 // MarshalJSON returns a json byte array string of the snowflake ID.
